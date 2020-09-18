@@ -1,9 +1,73 @@
 <ion-header>
   <ion-toolbar>
-    <ion-title>auth</ion-title>
+    <ion-title>{{isLogin? "Login": "Sign Up"}}</ion-title>
   </ion-toolbar>
 </ion-header>
 
-<ion-content>
-  <ion-button color="primary" (click)="onLogin()">Login</ion-button>
+<ion-content class="ion-padding">
+  <form #form="ngForm" (ngSubmit)="onSubmit(form)">
+    <ion-grid>
+      <ion-row>
+        <ion-col size-sm="6" offset-sm="3">
+          <ion-list>
+            <ion-item>
+              <ion-label position="floating">E-mail</ion-label>
+              <ion-input
+                type="email"
+                ngModel
+                name="email"
+                required
+                email
+                #emailField="ngModel"
+              ></ion-input>
+            </ion-item>
+            <ion-item
+              *ngIf=" emailField.touched && !emailField.valid"
+              lines="none"
+            >
+              <ion-text color="danger" slot="start"
+                >Please enter a valid email address</ion-text
+              >
+            </ion-item>
+
+            <ion-item>
+              <ion-label position="floating">Password</ion-label>
+              <ion-input
+                type="password"
+                name="password"
+                ngModel
+                required
+                minlength="6"
+                #passwordField="ngModel"
+              ></ion-input>
+            </ion-item>
+            <ion-item
+              *ngIf="passwordField.touched && !passwordField.valid"
+              lines="none"
+            >
+              <ion-text color="danger"
+                >Password should be at least 6 characters</ion-text
+              >
+            </ion-item>
+          </ion-list>
+        </ion-col>
+      </ion-row>
+      <ion-row>
+        <ion-col size-sm="6" offset-sm="3">
+          <ion-button
+            type="submit"
+            color="primary"
+            expand="block"
+            (click)="onLogin()"
+            [disabled]="!form.valid"
+            >{{ isLogin ? 'Login' : 'Sign Up'}}</ion-button
+          >
+          <ion-button fill="clear" (click)="onSwitchAuthMode()"
+            >{{isLogin ? "Don't have an account?" :"Already have an account?"
+            }}</ion-button
+          >
+        </ion-col>
+      </ion-row>
+    </ion-grid>
+  </form>
 </ion-content>
