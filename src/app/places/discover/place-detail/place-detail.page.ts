@@ -1,4 +1,4 @@
-import { Component, OnInit } from "@angular/core";
+import { Component, OnDestroy, OnInit } from "@angular/core";
 import {
   ActionSheetController,
   ModalController,
@@ -8,14 +8,16 @@ import { PlacesService } from "../../places.service";
 import { ActivatedRoute } from "@angular/router";
 import { Place } from "../../places.model";
 import { CreateBookingComponent } from "src/app/bookings/create-booking/create-booking.component";
+import { Subscription } from "rxjs";
 
 @Component({
   selector: "app-place-detail",
   templateUrl: "./place-detail.page.html",
   styleUrls: ["./place-detail.page.scss"],
 })
-export class PlaceDetailPage implements OnInit {
+export class PlaceDetailPage implements OnInit, OnDestroy {
   place: Place;
+  private placesSub: Subscription;
 
   constructor(
     private navCtrl: NavController,
@@ -32,7 +34,11 @@ export class PlaceDetailPage implements OnInit {
         return;
       }
 
-      this.place = this.placesService.getPlace(paramMap.get("placeId"));
+      this.placesSub = this.placesService
+        .getPlace(paramMap.get("placeId"))
+        .subscribe((place) => {
+          this.place = place;
+        });
     });
   }
 
@@ -69,7 +75,7 @@ export class PlaceDetailPage implements OnInit {
     this.modalCtrl
       .create({
         component: CreateBookingComponent,
-        componentProps: { selectedPlace: this.place },
+        componentProps: { selectedPlace: this.place, selectedMode: mode },
       })
       .then((modalEle) => {
         modalEle.present();
@@ -77,7 +83,13 @@ export class PlaceDetailPage implements OnInit {
         return modalEle.onDidDismiss();
       })
       .then((resultData) => {
-        console.log(resultData.data, resultData.role);
+        console.log(resultData);
       });
+  }
+
+  ngOnDestroy() {
+    if (this.placesSub) {
+      this.placesSub.unsubscribe();
+    }
   }
 }
