@@ -2,7 +2,7 @@ import { Injectable } from "@angular/core";
 import { BehaviorSubject } from "rxjs";
 import { AuthService } from "../auth/auth.service";
 import { Place } from "./places.model";
-import { take, map } from "rxjs/operators";
+import { take, map, tap, delay } from "rxjs/operators";
 @Injectable({
   providedIn: "root",
 })
@@ -16,7 +16,7 @@ export class PlacesService {
       149.99,
       new Date("2020-09-19"),
       new Date("2020-12-19"),
-      "abc"
+      "xyz"
     ),
     new Place(
       "p2",
@@ -61,6 +61,35 @@ export class PlacesService {
     );
   }
 
+  updateOffer(placeId: string, title: string, description: string) {
+    //updateOffer runs when the user clicks so therefore we onyl want the latest data when that event occurs
+    //hence we use take(1) so we get the latest data and end
+    return this.places.pipe(
+      take(1),
+      delay(1000),
+      tap((places) => {
+        const updatedPlaceIndex = places.findIndex((p) => p.id === placeId);
+        const updatedPlaces = [...places];
+        const oldPlace = updatedPlaces[updatedPlaceIndex];
+
+        updatedPlaces[updatedPlaceIndex] = new Place(
+          oldPlace.id,
+          title,
+          description,
+          oldPlace.imageUrl,
+          oldPlace.price,
+          oldPlace.availableFrom,
+          oldPlace.availableTo,
+          oldPlace.userId
+        );
+
+        //we emit an event with the newly updated place
+        //so in other part of the app that is subsribed to the place subject it will receive the new data
+        this._places.next(updatedPlaces);
+      })
+    );
+  }
+
   addPlace(
     title: string,
     description: string,
@@ -84,11 +113,24 @@ export class PlacesService {
     //take takes only the first emitted data as value for the function inside subscription and then cancels the subscription
     //we want to do this so we get only one object of places which is the current latest list of places and not listen to future updates
     //because it is a click listener and we do not want it ro run everytime the places changes
-    this.places.pipe(take(1)).subscribe((places) => {
-      //Since places is not an array and is a behaviour subject, to add places we
-      //call next to emit an event with the newest data which is the old array of places + new place
-      this._places.next(places.concat(newPlace));
-    });
+    return this.places.pipe(
+      take(1),
+      delay(1000),
+      tap((places) => {
+        //TAP
+        //tap is used to execute a piece of code without completing the variable
+        //if we use subsrive the observable will complete so by using tap we can return it as observable
+        //and access it in another file by calling subscribe and getting the data from subscribe
+
+        //Since places is not an array and is a behaviour subject, to add places we
+        //call next to emit an event with the newest data which is the old array of places + new place
+
+        this._places.next(places.concat(newPlace));
+
+        //if we use settimeout to simulate delay it will not stop subsrcube from running
+        //subscribe will run first before the async code finishes
+      })
+    );
   }
 
   constructor(private authService: AuthService) {}

@@ -2,6 +2,7 @@ import { Component, OnDestroy, OnInit } from "@angular/core";
 import { PlacesService } from "../places.service";
 import { Place } from "../places.model";
 import { Subscription } from "rxjs";
+import { AuthService } from "src/app/auth/auth.service";
 
 @Component({
   selector: "app-discover",
@@ -10,8 +11,13 @@ import { Subscription } from "rxjs";
 })
 export class DiscoverPage implements OnInit, OnDestroy {
   loadedPlaces: Place[];
+  relevantPlaces: Place[];
   private placesSub: Subscription;
-  constructor(private placesService: PlacesService) {}
+  private filter = "all";
+  constructor(
+    private placesService: PlacesService,
+    private authService: AuthService
+  ) {}
 
   ngOnInit() {
     //EVERY observable returns a subscripton object when subscribed
@@ -19,11 +25,20 @@ export class DiscoverPage implements OnInit, OnDestroy {
     //the subscripton obj has unsubscribe method on it to unsub to observable when page is destroyed
     this.placesSub = this.placesService.places.subscribe((places) => {
       this.loadedPlaces = places;
+      this.relevantPlaces = this.loadedPlaces;
+      this.onFilterUpdate(this.filter);
     });
   }
 
-  onFilterUpdate(event: CustomEvent) {
+  onFilterUpdate(filter: string) {
     // console.log(event.detail);
+    if (filter === "all") {
+      this.relevantPlaces = this.loadedPlaces;
+    } else {
+      this.relevantPlaces = this.loadedPlaces.filter(
+        (place) => place.userId !== this.authService.userId
+      );
+    }
   }
 
   ngOnDestroy() {
