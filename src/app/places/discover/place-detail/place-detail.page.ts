@@ -1,12 +1,13 @@
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import {
   ActionSheetController,
+  AlertController,
   LoadingController,
   ModalController,
   NavController,
 } from "@ionic/angular";
 import { PlacesService } from "../../places.service";
-import { ActivatedRoute } from "@angular/router";
+import { ActivatedRoute, Router } from "@angular/router";
 import { Place } from "../../places.model";
 import { CreateBookingComponent } from "src/app/bookings/create-booking/create-booking.component";
 import { Subscription } from "rxjs";
@@ -20,7 +21,7 @@ import { BookingService } from "src/app/bookings/booking.service";
 export class PlaceDetailPage implements OnInit, OnDestroy {
   place: Place;
   private placesSub: Subscription;
-
+  isLoading = false;
   constructor(
     private navCtrl: NavController,
     private placesService: PlacesService,
@@ -28,7 +29,9 @@ export class PlaceDetailPage implements OnInit, OnDestroy {
     private modalCtrl: ModalController,
     private actionCtrl: ActionSheetController,
     private bookingService: BookingService,
-    private loadingCtrl: LoadingController
+    private loadingCtrl: LoadingController,
+    private alertCtrl: AlertController,
+    private router: Router
   ) {}
 
   ngOnInit() {
@@ -37,12 +40,34 @@ export class PlaceDetailPage implements OnInit, OnDestroy {
         this.navCtrl.navigateBack("/places/discover");
         return;
       }
-
+      this.isLoading = true;
       this.placesSub = this.placesService
         .getPlace(paramMap.get("placeId"))
-        .subscribe((place) => {
-          this.place = place;
-        });
+        .subscribe(
+          (place) => {
+            this.place = place;
+
+            this.isLoading = false;
+          },
+          (error) => {
+            this.alertCtrl
+              .create({
+                header: "Error Occured",
+                message: "Could not load place.",
+                buttons: [
+                  {
+                    text: "Okay",
+                    handler: () => {
+                      this.router.navigateByUrl("/places/discover");
+                    },
+                  },
+                ],
+              })
+              .then((alertEle) => {
+                alertEle.present();
+              });
+          }
+        );
     });
   }
 

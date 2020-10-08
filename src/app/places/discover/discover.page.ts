@@ -10,6 +10,7 @@ import { AuthService } from "src/app/auth/auth.service";
   styleUrls: ["./discover.page.scss"],
 })
 export class DiscoverPage implements OnInit, OnDestroy {
+  isLoading = false;
   loadedPlaces: Place[];
   relevantPlaces: Place[];
   private placesSub: Subscription;
@@ -30,6 +31,12 @@ export class DiscoverPage implements OnInit, OnDestroy {
     });
   }
 
+  ionViewWillEnter() {
+    this.isLoading = true;
+    this.placesService.fetchPlace().subscribe(() => {
+      this.isLoading = false;
+    });
+  }
   onFilterUpdate(filter: string) {
     // console.log(event.detail);
     if (filter === "all") {
