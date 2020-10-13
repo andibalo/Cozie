@@ -12,10 +12,11 @@ import { BookingService } from "./booking.service";
 export class BookingsPage implements OnInit, OnDestroy {
   loadedBookings: Booking[];
   bookingSub: Subscription;
+  isLoading = false
   constructor(
     private bookingService: BookingService,
     private loadingCtrl: LoadingController
-  ) {}
+  ) { }
 
   ngOnInit() {
     this.bookingSub = this.bookingService.bookings.subscribe((bookings) => {
@@ -27,6 +28,13 @@ export class BookingsPage implements OnInit, OnDestroy {
     if (this.bookingSub) {
       this.bookingSub.unsubscribe();
     }
+  }
+
+  ionViewWillEnter() {
+    this.isLoading = true
+    this.bookingService.fetchBookings().subscribe(() => {
+      this.isLoading = false
+    })
   }
 
   onDeleteBooking(bookingId: string, slidingEl: IonItemSliding) {

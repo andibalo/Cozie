@@ -11,9 +11,17 @@
   <ion-grid>
     <ion-row>
       <ion-col
+        *ngIf="isLoading"
         size-sm="6"
         offset-sm="3"
-        *ngIf="!loadedBookings || loadedBookings.length <= 0"
+        class="ion-text-center"
+      >
+        <ion-spinner color="primary"></ion-spinner>
+      </ion-col>
+      <ion-col
+        size-sm="6"
+        offset-sm="3"
+        *ngIf="!isLoading && (!loadedBookings || loadedBookings.length <= 0)"
       >
         <p class="ion-text-center">No bookings yet!</p>
       </ion-col>
@@ -25,6 +33,9 @@
         <ion-list>
           <ion-item-sliding *ngFor="let booking of loadedBookings" #slidingItem>
             <ion-item>
+              <ion-thumbnail slot="start">
+                <ion-img [src]="booking.placeImage"></ion-img>
+              </ion-thumbnail>
               <ion-label>
                 <h5>{{ booking.placeTitle }}</h5>
                 <p>Guests: {{booking.guestNumber}}</p>
