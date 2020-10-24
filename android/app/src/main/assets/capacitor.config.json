@@ -1,5 +1,5 @@
 {
-  "appId": "io.inconsistence.bookingapp",
+  "appId": "io.ionic.starter",
   "appName": "bookingApp",
   "bundledWebRuntime": false,
   "npmClient": "npm",
