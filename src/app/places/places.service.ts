@@ -89,6 +89,16 @@ export class PlacesService {
       );
   }
 
+  uploadImage(image: File) {
+    const uploadData = new FormData();
+    uploadData.append("image", image);
+
+    return this.http.post<{ imageUrl: string; imagePath: string }>(
+      "https://us-central1-cozie-d78bb.cloudfunctions.net/storeImage",
+      uploadData
+    );
+  }
+
   updateOffer(placeId: string, title: string, description: string) {
     let updatedPlaces: Place[];
     //updateOffer runs when the user clicks so therefore we onyl want the latest data when that event occurs
@@ -175,7 +185,8 @@ export class PlacesService {
     description: string,
     price: number,
     dateFrom: Date,
-    dateTo: Date
+    dateTo: Date,
+    imageUrl: string
   ) {
     let generatedId: string;
 
@@ -183,7 +194,7 @@ export class PlacesService {
       Math.random().toString(),
       title,
       description,
-      "https://lonelyplanetimages.imgix.net/mastheads/GettyImages-538096543_medium.jpg?sharp=10&vib=20&w=1200",
+      imageUrl,
       price,
       dateFrom,
       dateTo,
@@ -226,7 +237,6 @@ export class PlacesService {
         })
       );
   }
-  
-  
+
   constructor(private authService: AuthService, private http: HttpClient) {}
 }

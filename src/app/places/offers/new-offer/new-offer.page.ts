@@ -2,6 +2,7 @@ import { Component, OnInit } from "@angular/core";
 import { FormControl, FormGroup, Validators } from "@angular/forms";
 import { Router } from "@angular/router";
 import { LoadingController } from "@ionic/angular";
+import { switchMap } from "rxjs/operators";
 import { PlacesService } from "../../places.service";
 
 function base64toBlob(base64Data, contentType) {
@@ -99,14 +100,19 @@ export class NewOfferPage implements OnInit {
     });
 
     loadingEle.present();
-
     this.placeService
-      .addPlace(
-        this.form.value.title,
-        this.form.value.description,
-        this.form.value.price,
-        new Date(this.form.value.dateFrom),
-        new Date(this.form.value.dateTo)
+      .uploadImage(this.form.get("image").value)
+      .pipe(
+        switchMap((uploadRes) => {
+          return this.placeService.addPlace(
+            this.form.value.title,
+            this.form.value.description,
+            this.form.value.price,
+            new Date(this.form.value.dateFrom),
+            new Date(this.form.value.dateTo),
+            uploadRes.imageUrl
+          );
+        })
       )
       .subscribe((places) => {
         //by subsribing we know that the code that adds the data finsihes and then we can dismiss

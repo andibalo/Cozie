@@ -1,8 +1,11 @@
 import { Component, OnInit } from "@angular/core";
-import { AuthService } from "./auth.service";
+import { AuthResponseData, AuthService } from "./auth.service";
 import { Router } from "@angular/router";
-import { LoadingController } from "@ionic/angular";
+import { AlertController, LoadingController } from "@ionic/angular";
 import { NgForm } from "@angular/forms";
+import { Button } from "protractor";
+import { ignoreElements } from "rxjs/operators";
+import { Observable } from "rxjs";
 @Component({
   selector: "app-auth",
   templateUrl: "./auth.page.html",
@@ -12,7 +15,8 @@ export class AuthPage implements OnInit {
   constructor(
     private authServices: AuthService,
     private router: Router,
-    private loadingCtrl: LoadingController
+    private loadingCtrl: LoadingController,
+    private alertCtrl: AlertController
   ) {}
 
   isLogin = false;
@@ -23,21 +27,62 @@ export class AuthPage implements OnInit {
     this.isLogin = !this.isLogin;
   }
 
-  onLogin() {
+  authenticate(email: string, password: string) {
     this.loadingCtrl
       .create({ message: "Logging In", keyboardClose: true })
       .then((loadingEle) => {
         loadingEle.present();
+        let authObs: Observable<AuthResponseData>;
 
-        setTimeout(() => {
-          this.authServices.login();
-          loadingEle.dismiss();
-          this.router.navigateByUrl("/places/discover");
-        }, 1000);
+        if (this.isLogin) {
+          authObs = this.authServices.login(email, password);
+        } else {
+          authObs = this.authServices.signup(email, password);
+        }
+        authObs.subscribe(
+          (resData) => {
+            console.log(resData);
+            loadingEle.dismiss();
+            this.router.navigateByUrl("/places/discover");
+          },
+          (errorRes) => {
+            console.log(errorRes);
+            loadingEle.dismiss();
+            const code = errorRes.error.error.message;
+
+            let message = "Something went wrong. Please try again later.";
+
+            if (code === "EMAIL_EXISTS") {
+              message = "This email already exists";
+            }
+
+            this.showAlert(message);
+          }
+        );
+      });
+  }
+
+  showAlert(message: string) {
+    this.alertCtrl
+      .create({
+        header: "Authentication Failed",
+        message: message,
+        buttons: ["Okay"],
+      })
+      .then((alertEle) => {
+        alertEle.present();
       });
   }
 
   onSubmit(form: NgForm) {
-    console.log(form.form.value);
+    if (!form.valid) {
+      return;
+    }
+
+    const email = form.value.email;
+    const password = form.value.password;
+
+    this.authenticate(email, password);
+    //console.log(email, password);
   }
 }

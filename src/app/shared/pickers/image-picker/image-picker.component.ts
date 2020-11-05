@@ -61,12 +61,12 @@ export class ImagePickerComponent implements OnInit {
   }
 
   async onPickImage() {
-    if (!Capacitor.isPluginAvailable("camera")) {
-      this.filePickerRef.nativeElement.click();
-      return;
-    }
-
     try {
+      if (!Capacitor.isPluginAvailable("camera")) {
+        this.filePickerRef.nativeElement.click();
+        return;
+      }
+
       const image = await Plugins.Camera.getPhoto({
         quality: 50, //quality of image ( value is 1-100 )
         source: CameraSource.Prompt, //ask if user can use gallery/camera or both
