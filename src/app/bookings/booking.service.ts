@@ -60,39 +60,46 @@ export class BookingService {
     dateTo: Date
   ) {
     let generatedId: string;
-    const newBooking = new Booking(
-      Math.random().toString(),
-      placeId,
-      this.authService.userId,
-      placeTitle,
-      guestNumber,
-      placeImg,
-      firstName,
-      lastName,
-      dateFrom,
-      dateTo
+    let newBooking: Booking;
+    return this.authService.userId.pipe(
+      take(1),
+      switchMap((userId) => {
+        if (!userId) {
+          throw new Error("No user id found");
+        }
+
+        newBooking = new Booking(
+          Math.random().toString(),
+          placeId,
+          userId,
+          placeTitle,
+          guestNumber,
+          placeImg,
+          firstName,
+          lastName,
+          dateFrom,
+          dateTo
+        );
+
+        return this.http.post<{ name: string }>(
+          "https://cozie-d78bb.firebaseio.com/bookings.json",
+          { ...newBooking, id: null }
+        );
+      }),
+      //SWITCHMAP allows us to combine and share data between observables. It must return an observable
+      //in this case we need a resdata from the http request observable in the bookings observable which is the array of bookings
+
+      switchMap((resData) => {
+        generatedId = resData.name;
+        return this.bookings;
+      }),
+      //TAKE 1 is a must because we dont want to setup an ongoing subscription but only a snapshot of current data or the first emitted data
+      take(1),
+      tap((bookings) => {
+        newBooking.id = generatedId;
+        return this._bookings.next(bookings.concat(newBooking));
+      })
     );
-
-    return this.http
-      .post<{ name: string }>(
-        "https://cozie-d78bb.firebaseio.com/bookings.json",
-        { ...newBooking, id: null }
-      )
-      .pipe(
-        //SWITCHMAP allows us to combine and share data between observables. It must return an observable
-        //in this case we need a resdata from the http request observable in the bookings observable which is the array of bookings
-
-        switchMap((resData) => {
-          generatedId = resData.name;
-          return this.bookings;
-        }),
-        //TAKE 1 is a must because we dont want to setup an ongoing subscription but only a snapshot of current data or the first emitted data
-        take(1),
-        tap((bookings) => {
-          newBooking.id = generatedId;
-          return this._bookings.next(bookings.concat(newBooking));
-        })
-      );
 
     // return this._bookings.pipe(
     //   take(1),
@@ -104,10 +111,43 @@ export class BookingService {
   }
 
   fetchBookings() {
-    return this.http
-      .get<{ [key: string]: BookingData }>(
+    return this.authService.userId.pipe(
+      switchMap((userId) => {
+        return this.http.get<{ [key: string]: BookingData }>(
+          `https://cozie-d78bb.firebaseio.com/bookings.json?orderBy="userId"&equalTo="${userId}"`
+        );
+      }),
+      map((bookingData) => {
+        const bookings = [];
+
+        for (let key in bookingData) {
+          if (bookingData.hasOwnProperty(key)) {
+            bookings.push(
+              new Booking(
+                key,
+                bookingData[key].placeId,
+                bookingData[key].userId,
+                bookingData[key].placeTitle,
+                bookingData[key].guestNumber,
+                bookingData[key].placeImage,
+                bookingData[key].firstName,
+                bookingData[key].lastName,
+                new Date(bookingData[key].bookedFrom),
+                new Date(bookingData[key].bookedTo)
+              )
+            );
+          }
+        }
+
+        return bookings;
+      }),
+      tap((bookings) => {
+        this._bookings.next(bookings);
+      })
+    );
+    /*return this.http.get<{ [key: string]: BookingData }>(
         `https://cozie-d78bb.firebaseio.com/bookings.json?orderBy="userId"&equalTo="${this.authService.userId}"`
-      )
+      );
       .pipe(
         //MAP
         //map takes a data and format it to something we want difference between switchmap is that switchmap needs
@@ -139,6 +179,6 @@ export class BookingService {
         tap((bookings) => {
           this._bookings.next(bookings);
         })
-      );
+      );*/
   }
 }

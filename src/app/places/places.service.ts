@@ -189,24 +189,46 @@ export class PlacesService {
     imageUrl: string
   ) {
     let generatedId: string;
+    let newPlace: Place;
+    return this.authService.userId.pipe(
+      take(1),
+      switchMap((userId) => {
+        if (!userId) {
+          throw new Error("No user found");
+        }
+        newPlace = new Place(
+          Math.random().toString(),
+          title,
+          description,
+          imageUrl,
+          price,
+          dateFrom,
+          dateTo,
+          userId
+        );
 
-    const newPlace = new Place(
-      Math.random().toString(),
-      title,
-      description,
-      imageUrl,
-      price,
-      dateFrom,
-      dateTo,
-      this.authService.userId
+        //Http responses is returned as an observable
+        return this.http.post<{ name: string }>(
+          "https://cozie-d78bb.firebaseio.com/offered-places.json",
+          { ...newPlace, id: null }
+        );
+      }),
+      switchMap((resData) => {
+        generatedId = resData.name;
+        return this.places;
+      }),
+      take(1),
+      tap((places) => {
+        newPlace.id = generatedId;
+        this._places.next(places.concat(newPlace));
+      })
     );
 
-    //Http responses is returned as an observable
-    return this.http
-      .post<{ name: string }>(
-        "https://cozie-d78bb.firebaseio.com/offered-places.json",
-        { ...newPlace, id: null }
-      )
+    /*return this.http
+        .post<{ name: string }>(
+          "https://cozie-d78bb.firebaseio.com/offered-places.json",
+          { ...newPlace, id: null }
+        )
       .pipe(
         //SWITCHMAP
         //switchmap takes data from the current obsevable chain and returns a new observable
@@ -235,7 +257,7 @@ export class PlacesService {
           //if we use settimeout to simulate delay it will not stop subsrcube from running
           //subscribe will run first before the async code finishes
         })
-      );
+      );*/
   }
 
   constructor(private authService: AuthService, private http: HttpClient) {}

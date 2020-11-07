@@ -12,6 +12,8 @@ import { Place } from "../../places.model";
 import { CreateBookingComponent } from "src/app/bookings/create-booking/create-booking.component";
 import { Subscription } from "rxjs";
 import { BookingService } from "src/app/bookings/booking.service";
+import { AuthService } from "src/app/auth/auth.service";
+import { switchMap } from "rxjs/operators";
 
 @Component({
   selector: "app-place-detail",
@@ -22,6 +24,7 @@ export class PlaceDetailPage implements OnInit, OnDestroy {
   place: Place;
   private placesSub: Subscription;
   isLoading = false;
+  isBookable: boolean;
   constructor(
     private navCtrl: NavController,
     private placesService: PlacesService,
@@ -31,7 +34,8 @@ export class PlaceDetailPage implements OnInit, OnDestroy {
     private bookingService: BookingService,
     private loadingCtrl: LoadingController,
     private alertCtrl: AlertController,
-    private router: Router
+    private router: Router,
+    private authService: AuthService
   ) {}
 
   ngOnInit() {
@@ -41,15 +45,26 @@ export class PlaceDetailPage implements OnInit, OnDestroy {
         return;
       }
       this.isLoading = true;
-      this.placesSub = this.placesService
-        .getPlace(paramMap.get("placeId"))
+      let fetchedUserId: string | boolean;
+      this.authService.userId
+        .pipe(
+          switchMap((userId) => {
+            if (!userId) {
+              throw new Error("No user found");
+            }
+
+            fetchedUserId = userId;
+            return this.placesService.getPlace(paramMap.get("placeId"));
+          })
+        )
         .subscribe(
           (place) => {
             this.place = place;
-
+            this.isBookable = place.userId !== fetchedUserId;
             this.isLoading = false;
           },
           (error) => {
+            //console.log(error);
             this.alertCtrl
               .create({
                 header: "Error Occured",
