@@ -13,7 +13,7 @@ import { CreateBookingComponent } from "src/app/bookings/create-booking/create-b
 import { Subscription } from "rxjs";
 import { BookingService } from "src/app/bookings/booking.service";
 import { AuthService } from "src/app/auth/auth.service";
-import { switchMap } from "rxjs/operators";
+import { switchMap, take } from "rxjs/operators";
 
 @Component({
   selector: "app-place-detail",
@@ -48,6 +48,7 @@ export class PlaceDetailPage implements OnInit, OnDestroy {
       let fetchedUserId: string | boolean;
       this.authService.userId
         .pipe(
+          take(1),
           switchMap((userId) => {
             if (!userId) {
               throw new Error("No user found");

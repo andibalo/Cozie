@@ -84,5 +84,6 @@ export class AuthPage implements OnInit {
 
     this.authenticate(email, password);
     //console.log(email, password);
+    form.reset();
   }
 }
