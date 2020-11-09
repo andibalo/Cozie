@@ -5,18 +5,28 @@ const os = require('os');
 const path = require('path');
 const fs = require('fs');
 const uuid = require('uuid/v4');
-
+const fbAdmin = require('firebase-admin')
 const { Storage } = require('@google-cloud/storage');
 
 const storage = new Storage({
     projectId: 'cozie-d78bb'
 });
 
+fbAdmin.initializeApp({ credential: fbAdmin.credential.cert(require('./ionic-app.json')) })
+
 exports.storeImage = functions.https.onRequest((req, res) => {
     return cors(req, res, () => {
         if (req.method !== 'POST') {
             return res.status(500).json({ message: 'Not allowed.' });
         }
+
+        if (!req.headers.authorization || !req.headers.authorization.startsWith('Bearer ')) {
+            return res.status(401).json({ error: 'Unauthorizd' })
+        }
+
+        let idToken
+        idToken = req.headers.authorization.split('Bearer ')[1]
+
         const busboy = new Busboy({ headers: req.headers });
         let uploadData;
         let oldImagePath;
@@ -38,32 +48,33 @@ exports.storeImage = functions.https.onRequest((req, res) => {
                 imagePath = oldImagePath;
             }
 
-            console.log(uploadData.type);
-            return storage
-                .bucket('cozie-d78bb.appspot.com')
-                .upload(uploadData.filePath, {
-                    uploadType: 'media',
-                    destination: imagePath,
-                    metadata: {
-                        metadata: {
-                            contentType: uploadData.type,
-                            firebaseStorageDownloadTokens: id
-                        }
-                    }
-                })
+            return fbAdmin.auth().verifyIdToken(idToken).then(decodedToken => {
 
-                .then(() => {
-                    return res.status(201).json({
-                        imageUrl:
-                            'https://firebasestorage.googleapis.com/v0/b/' +
-                            storage.bucket('cozie-d78bb.appspot.com').name +
-                            '/o/' +
-                            encodeURIComponent(imagePath) +
-                            '?alt=media&token=' +
-                            id,
-                        imagePath: imagePath
-                    });
-                })
+                console.log(uploadData.type);
+                return storage
+                    .bucket('cozie-d78bb.appspot.com')
+                    .upload(uploadData.filePath, {
+                        uploadType: 'media',
+                        destination: imagePath,
+                        metadata: {
+                            metadata: {
+                                contentType: uploadData.type,
+                                firebaseStorageDownloadTokens: id
+                            }
+                        }
+                    })
+            }).then(() => {
+                return res.status(201).json({
+                    imageUrl:
+                        'https://firebasestorage.googleapis.com/v0/b/' +
+                        storage.bucket('cozie-d78bb.appspot.com').name +
+                        '/o/' +
+                        encodeURIComponent(imagePath) +
+                        '?alt=media&token=' +
+                        id,
+                    imagePath: imagePath
+                });
+            })
                 .catch(error => {
                     console.log(error);
                     return res.status(401).json({ error: 'Unauthorized!' });

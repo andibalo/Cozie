@@ -29,24 +29,27 @@ export class BookingService {
   }
 
   cancelBooking(bookingId: string) {
-    return this.http
-      .delete(`https://cozie-d78bb.firebaseio.com/bookings/${bookingId}.json`)
-      .pipe(
-        switchMap(() => {
-          return this.bookings;
-        }),
-        //IMPORTANT to take 1 because what we return from switchmap is the behaviour subject
-        //and we call next in the tap operator, with take it only takes the sanpshot of data and end the subscription
-        //without it we create an infinte loop
-        take(1),
-        tap((bookings) => {
-          this._bookings.next(
-            bookings.filter((booking) => {
-              booking.id !== bookingId;
-            })
-          );
-        })
-      );
+    return this.authService.token.pipe(
+      switchMap((token) => {
+        return this.http.delete(
+          `https://cozie-d78bb.firebaseio.com/bookings/${bookingId}.json?auth=${token}`
+        );
+      }),
+      switchMap(() => {
+        return this.bookings;
+      }),
+      //IMPORTANT to take 1 because what we return from switchmap is the behaviour subject
+      //and we call next in the tap operator, with take it only takes the sanpshot of data and end the subscription
+      //without it we create an infinte loop
+      take(1),
+      tap((bookings) => {
+        this._bookings.next(
+          bookings.filter((booking) => {
+            booking.id !== bookingId;
+          })
+        );
+      })
+    );
   }
 
   addBooking(
@@ -61,6 +64,7 @@ export class BookingService {
   ) {
     let generatedId: string;
     let newBooking: Booking;
+    let fetchedUserId: string;
     return this.authService.userId.pipe(
       take(1),
       switchMap((userId) => {
@@ -68,10 +72,16 @@ export class BookingService {
           throw new Error("No user id found");
         }
 
+        fetchedUserId = userId;
+
+        return this.authService.token;
+      }),
+      take(1),
+      switchMap((token) => {
         newBooking = new Booking(
           Math.random().toString(),
           placeId,
-          userId,
+          fetchedUserId,
           placeTitle,
           guestNumber,
           placeImg,
@@ -82,7 +92,7 @@ export class BookingService {
         );
 
         return this.http.post<{ name: string }>(
-          "https://cozie-d78bb.firebaseio.com/bookings.json",
+          `ttps://cozie-d78bb.firebaseio.com/bookings.json?auth=${token}`,
           { ...newBooking, id: null }
         );
       }),
@@ -111,11 +121,23 @@ export class BookingService {
   }
 
   fetchBookings() {
+    let fetchedUserId: string;
+
     return this.authService.userId.pipe(
       take(1),
       switchMap((userId) => {
+        if (!userId) {
+          throw new Error("No user found");
+        }
+
+        fetchedUserId = userId;
+
+        return this.authService.token;
+      }),
+      take(1),
+      switchMap((token) => {
         return this.http.get<{ [key: string]: BookingData }>(
-          `https://cozie-d78bb.firebaseio.com/bookings.json?orderBy="userId"&equalTo="${userId}"`
+          `https://cozie-d78bb.firebaseio.com/bookings.json?orderBy="userId"&equalTo="${fetchedUserId}"&auth=${token}`
         );
       }),
       map((bookingData) => {

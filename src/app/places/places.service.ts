@@ -4,6 +4,7 @@ import { AuthService } from "../auth/auth.service";
 import { Place } from "./places.model";
 import { take, map, tap, delay, switchMap } from "rxjs/operators";
 import { HttpClient } from "@angular/common/http";
+import { tokenName } from "@angular/compiler";
 interface PlaceData {
   title: string;
   description: string;
@@ -69,41 +70,54 @@ export class PlacesService {
     //   })
     // );
 
-    return this.http
-      .get<PlaceData>(
-        `https://cozie-d78bb.firebaseio.com/offered-places/${id}.json`
-      )
-      .pipe(
-        map((place) => {
-          return new Place(
-            id,
-            place.title,
-            place.description,
-            place.imageUrl,
-            place.price,
-            new Date(place.availableFrom),
-            new Date(place.availableTo),
-            place.userId
-          );
-        })
-      );
+    return this.authService.token.pipe(
+      take(1),
+      switchMap((userToken) => {
+        return this.http.get<PlaceData>(
+          `https://cozie-d78bb.firebaseio.com/offered-places/${id}.json?auth=${userToken}`
+        );
+      }),
+      map((place) => {
+        return new Place(
+          id,
+          place.title,
+          place.description,
+          place.imageUrl,
+          place.price,
+          new Date(place.availableFrom),
+          new Date(place.availableTo),
+          place.userId
+        );
+      })
+    );
   }
 
   uploadImage(image: File) {
     const uploadData = new FormData();
     uploadData.append("image", image);
 
-    return this.http.post<{ imageUrl: string; imagePath: string }>(
-      "https://us-central1-cozie-d78bb.cloudfunctions.net/storeImage",
-      uploadData
+    return this.authService.token.pipe(
+      take(1),
+      switchMap((userToken) => {
+        return this.http.post<{ imageUrl: string; imagePath: string }>(
+          "https://us-central1-cozie-d78bb.cloudfunctions.net/storeImage",
+          uploadData,
+          { headers: { Authorization: "Bearer " + userToken } }
+        );
+      })
     );
   }
 
   updateOffer(placeId: string, title: string, description: string) {
     let updatedPlaces: Place[];
+    let fetchedToken: string;
     //updateOffer runs when the user clicks so therefore we onyl want the latest data when that event occurs
     //hence we use take(1) so we get the latest data and end
-    return this.places.pipe(
+    return this.authService.token.pipe(
+      switchMap((token) => {
+        fetchedToken = token;
+        return this.places;
+      }),
       take(1),
       switchMap((places) => {
         //create the newly updated place and update the places array with the new place
@@ -140,44 +154,45 @@ export class PlacesService {
   }
 
   fetchPlace() {
-    return this.http
-      .get<{ [key: string]: PlaceData }>(
-        "https://cozie-d78bb.firebaseio.com/offered-places.json"
-      )
-      .pipe(
-        map((resData) => {
-          //MAP
-          //map is an operator that takes in the respsone data and returns a non observable data
-          //switchmap returns a new observable
+    return this.authService.token.pipe(
+      switchMap((userToken) => {
+        return this.http.get<{ [key: string]: PlaceData }>(
+          `https://cozie-d78bb.firebaseio.com/offered-places.json?auth=${userToken}`
+        );
+      }),
+      map((resData) => {
+        //MAP
+        //map is an operator that takes in the respsone data and returns a non observable data
+        //switchmap returns a new observable
 
-          const places = [];
+        const places = [];
 
-          for (let key in resData) {
-            if (resData.hasOwnProperty(key)) {
-              places.push(
-                new Place(
-                  key,
-                  resData[key].title,
-                  resData[key].description,
-                  resData[key].imageUrl,
-                  resData[key].price,
-                  new Date(resData[key].availableFrom),
-                  new Date(resData[key].availableTo),
-                  resData[key].userId
-                )
-              );
-            }
+        for (let key in resData) {
+          if (resData.hasOwnProperty(key)) {
+            places.push(
+              new Place(
+                key,
+                resData[key].title,
+                resData[key].description,
+                resData[key].imageUrl,
+                resData[key].price,
+                new Date(resData[key].availableFrom),
+                new Date(resData[key].availableTo),
+                resData[key].userId
+              )
+            );
           }
+        }
 
-          return places;
-        }),
-        tap((places) => {
-          //TAP
-          //tap operator will recieve returned data that is manipulated by the map operator
+        return places;
+      }),
+      tap((places) => {
+        //TAP
+        //tap operator will recieve returned data that is manipulated by the map operator
 
-          this._places.next(places);
-        })
-      );
+        this._places.next(places);
+      })
+    );
   }
 
   addPlace(
@@ -189,11 +204,18 @@ export class PlacesService {
     imageUrl: string
   ) {
     let generatedId: string;
+    let fetchedUserId: string;
     let newPlace: Place;
     return this.authService.userId.pipe(
       take(1),
       switchMap((userId) => {
-        if (!userId) {
+        fetchedUserId = userId;
+
+        return this.authService.token;
+      }),
+      take(1),
+      switchMap((token) => {
+        if (!fetchedUserId) {
           throw new Error("No user found");
         }
         newPlace = new Place(
@@ -204,12 +226,12 @@ export class PlacesService {
           price,
           dateFrom,
           dateTo,
-          userId
+          fetchedUserId
         );
 
         //Http responses is returned as an observable
         return this.http.post<{ name: string }>(
-          "https://cozie-d78bb.firebaseio.com/offered-places.json",
+          `https://cozie-d78bb.firebaseio.com/offered-places.json?auth=${token}`,
           { ...newPlace, id: null }
         );
       }),
